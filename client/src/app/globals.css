@@ -1,0 +1,259 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base element resets / theme tokens */
+@layer base {
+	:root { 
+		color-scheme: dark;
+		--neon-green: #77ff00;
+		--neon-green-glow: rgba(0, 255, 85, 0.44);
+		--dark-bg: #0a0a0a;
+		--darker-bg: #050505;
+	}
+	
+	body { 
+		background-color: #000000;
+		color: #e0e0e0;
+		-webkit-font-smoothing: antialiased;
+		overflow-x: hidden;
+	}
+
+	/* Sci-fi grid background */
+	body::before {
+		content: '';
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background-image: 
+			linear-gradient(rgba(0, 255, 65, 0.03) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(0, 255, 65, 0.03) 1px, transparent 1px);
+		background-size: 50px 50px;
+		pointer-events: none;
+		z-index: 0;
+		animation: gridPulse 8s ease-in-out infinite;
+	}
+
+	@keyframes gridPulse {
+		0%, 100% { opacity: 0.3; }
+		50% { opacity: 0.6; }
+	}
+
+	@keyframes neonGlow {
+		0%, 100% { 
+			box-shadow: 0 0 5px var(--neon-green-glow),
+						0 0 10px var(--neon-green-glow),
+						0 0 15px var(--neon-green-glow);
+		}
+		50% { 
+			box-shadow: 0 0 10px var(--neon-green-glow),
+						0 0 20px var(--neon-green-glow),
+						0 0 30px var(--neon-green-glow);
+		}
+	}
+
+	@keyframes slideInUp {
+		from {
+			opacity: 0;
+			transform: translateY(30px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@keyframes fadeIn {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
+
+	@keyframes float {
+		0%, 100% { transform: translateY(0px); }
+		50% { transform: translateY(-10px); }
+	}
+}
+
+/* App specific component classes */
+@layer components {
+	.app-container { 
+		max-width: 72rem;
+		margin-left: auto;
+		margin-right: auto;
+		padding-left: 1rem;
+		padding-right: 1rem;
+		position: relative;
+		z-index: 1;
+	}
+	
+	.card { 
+		background: linear-gradient(135deg, rgba(10, 10, 10, 0.9) 0%, rgba(5, 5, 5, 0.95) 100%);
+		border-radius: 1rem;
+		padding: 2rem;
+		box-shadow: 
+			0 0 1px rgba(0, 255, 65, 0.5),
+			0 4px 20px rgba(0, 0, 0, 0.8),
+			inset 0 1px 0 rgba(0, 255, 65, 0.1);
+		border: 1px solid rgba(0, 255, 65, 0.2);
+		backdrop-filter: blur(10px);
+		position: relative;
+		overflow: hidden;
+		transition: all 0.3s ease;
+	}
+
+	.card::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: -100%;
+		width: 100%;
+		height: 100%;
+		background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.1), transparent);
+		transition: left 0.5s;
+	}
+
+	.card:hover::before {
+		left: 100%;
+	}
+
+	.card:hover {
+		border-color: rgba(0, 255, 65, 0.4);
+		box-shadow: 
+			0 0 2px rgba(0, 255, 65, 0.6),
+			0 8px 30px rgba(0, 0, 0, 0.9),
+			inset 0 1px 0 rgba(0, 255, 65, 0.2);
+		transform: translateY(-2px);
+	}
+	
+	.btn { 
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 0.5rem;
+		padding: 0.75rem 1.5rem;
+		font-weight: 600;
+		border: 1px solid rgba(0, 255, 65, 0.3);
+		background: linear-gradient(135deg, rgba(0, 255, 65, 0.1) 0%, rgba(0, 255, 65, 0.05) 100%);
+		color: var(--neon-green);
+		transition: all 0.3s ease;
+		position: relative;
+		overflow: hidden;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		font-size: 0.875rem;
+	}
+
+	.btn::before {
+		content: '';
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: 0;
+		height: 0;
+		border-radius: 50%;
+		background: rgba(0, 255, 65, 0.2);
+		transform: translate(-50%, -50%);
+		transition: width 0.6s, height 0.6s;
+	}
+
+	.btn:hover::before {
+		width: 300px;
+		height: 300px;
+	}
+
+	.btn:hover { 
+		background: linear-gradient(135deg, rgba(0, 255, 65, 0.2) 0%, rgba(0, 255, 65, 0.1) 100%);
+		border-color: var(--neon-green);
+		box-shadow: 0 0 10px var(--neon-green-glow), 0 0 20px var(--neon-green-glow);
+		transform: translateY(-2px);
+	}
+
+	.btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+		border-color: rgba(0, 255, 65, 0.1);
+	}
+
+	.btn:disabled:hover {
+		transform: none;
+		box-shadow: none;
+	}
+	
+	.input { 
+		width: 100%;
+		border-radius: 0.5rem;
+		background-color: rgba(10, 10, 10, 0.8);
+		border: 1px solid rgba(0, 255, 65, 0.2);
+		padding: 0.75rem 1rem;
+		outline: none;
+		color: #e0e0e0;
+		transition: all 0.3s ease;
+		font-size: 0.95rem;
+	}
+
+	.input::placeholder {
+		color: rgba(224, 224, 224, 0.4);
+	}
+	
+	.input:focus { 
+		border-color: var(--neon-green);
+		box-shadow: 
+			0 0 0 2px rgba(0, 255, 65, 0.1),
+			0 0 10px var(--neon-green-glow);
+		background-color: rgba(0, 0, 0, 0.9);
+	}
+	
+	.label { 
+		font-size: 0.875rem;
+		color: var(--neon-green);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		margin-bottom: 0.5rem;
+		display: block;
+	}
+
+	.neon-text {
+		color: var(--neon-green);
+		text-shadow: 
+			0 0 10px var(--neon-green-glow),
+			0 0 20px var(--neon-green-glow),
+			0 0 30px var(--neon-green-glow);
+	}
+
+	.animate-slide-in {
+		animation: slideInUp 0.6s ease-out;
+	}
+
+	.animate-fade-in {
+		animation: fadeIn 0.8s ease-out;
+	}
+
+	.animate-float {
+		animation: float 3s ease-in-out infinite;
+	}
+
+	/* Custom scrollbar */
+	.custom-scrollbar::-webkit-scrollbar {
+		width: 8px;
+	}
+
+	.custom-scrollbar::-webkit-scrollbar-track {
+		background: rgba(0, 0, 0, 0.3);
+		border-radius: 10px;
+	}
+
+	.custom-scrollbar::-webkit-scrollbar-thumb {
+		background: rgba(0, 255, 65, 0.3);
+		border-radius: 10px;
+		border: 2px solid transparent;
+		background-clip: content-box;
+	}
+
+	.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+		background: rgba(0, 255, 65, 0.5);
+		background-clip: content-box;
+	}
+}
