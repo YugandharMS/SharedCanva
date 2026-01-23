@@ -5,7 +5,29 @@ import { useParams, useRouter } from 'next/navigation'
 import { useRoomSocket } from '@/lib/useRoomSocket'
 import MemberList from '@/components/MemberList'
 import Canvas, { CanvasHandle, Stroke } from '@/components/canvas'
+import MobileCanvasView, { LandscapePrompt, MobileCanvasHandle } from '@/components/MobileCanvasView'
 import { useUserProfile } from '@/lib/profile'
+
+// Hook to detect mobile devices
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera
+      const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|tablet/i
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+      const isSmallScreen = window.innerWidth < 768
+      setIsMobile((mobileRegex.test(userAgent.toLowerCase()) || isTouchDevice) && isSmallScreen)
+    }
+
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  return isMobile
+}
 
 export default function RoomPage() {
   const { code } = useParams<{ code: string }>()
@@ -13,7 +35,18 @@ export default function RoomPage() {
   const { profile, ready: profileReady } = useUserProfile()
   const joinAttemptedRef = useRef(false)
   const canvasRef = useRef<CanvasHandle>(null)
+  const mobileCanvasRef = useRef<MobileCanvasHandle>(null)
   const [rosterOpen, setRosterOpen] = useState(false)
+  
+  // Mobile-specific state
+  const isMobile = useIsMobile()
+  const [isLandscapeMode, setIsLandscapeMode] = useState(false)
+
+  // Store isLandscapeMode in a ref so callbacks can access the current value
+  const isLandscapeModeRef = useRef(isLandscapeMode)
+  useEffect(() => {
+    isLandscapeModeRef.current = isLandscapeMode
+  }, [isLandscapeMode])
 
   const {
     connected,
@@ -27,14 +60,26 @@ export default function RoomPage() {
   } = useRoomSocket(code, {
     onStrokeReceived: (stroke: Stroke) => {
       canvasRef.current?.addRemoteStroke(stroke)
+      // Also update mobile canvas if in landscape mode
+      if (isLandscapeModeRef.current) {
+        mobileCanvasRef.current?.addRemoteStroke(stroke)
+      }
     },
     onStrokeRemoved: (strokeId: string) => {
       canvasRef.current?.removeStroke(strokeId)
+      // Also update mobile canvas if in landscape mode
+      if (isLandscapeModeRef.current) {
+        mobileCanvasRef.current?.removeStroke(strokeId)
+      }
     },
     onCanvasSnapshot: (snapshot: string) => {
       if (!snapshot) return
       if (snapshot.trim().startsWith('{')) {
         canvasRef.current?.loadSnapshot(snapshot)
+        // Also update mobile canvas if in landscape mode
+        if (isLandscapeModeRef.current) {
+          mobileCanvasRef.current?.loadSnapshot(snapshot)
+        }
       } else if (snapshot.startsWith('data:image/')) {
         // base64 fallbacks ignored for now
       }
@@ -60,6 +105,66 @@ export default function RoomPage() {
   const connectionDot = connected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse' : 'bg-amber-500 animate-pulse'
   const memberCount = members.length
   const currentMemberId = selfMember?.memberId ?? null
+
+  // Handle stroke completion for mobile canvas
+  const handleMobileStrokeComplete = (stroke: Stroke) => {
+    if (!code) return
+    emitStroke(code, stroke)
+    requestAnimationFrame(() => {
+      const serialized = mobileCanvasRef.current?.getSerialized()
+      if (serialized) {
+        emitSaveSnapshot(code, serialized)
+      }
+    })
+  }
+
+  // Handle undo for mobile canvas
+  const handleMobileUndo = (stroke: Stroke) => {
+    if (!code || !stroke?.id) return
+    emitUndo(code, stroke.id)
+    requestAnimationFrame(() => {
+      const serialized = mobileCanvasRef.current?.getSerialized()
+      if (serialized) {
+        emitSaveSnapshot(code, serialized)
+      }
+    })
+  }
+
+  // Enter landscape mode - sync canvas state
+  const enterLandscapeMode = () => {
+    setIsLandscapeMode(true)
+    // After a short delay, load the current canvas state into mobile canvas
+    setTimeout(() => {
+      const serialized = canvasRef.current?.getSerialized()
+      if (serialized) {
+        mobileCanvasRef.current?.loadSnapshot(serialized)
+      }
+    }, 100)
+  }
+
+  // Exit landscape mode - sync state back to main canvas
+  const exitLandscapeMode = () => {
+    // Sync mobile canvas state back to main canvas before exiting
+    const serialized = mobileCanvasRef.current?.getSerialized()
+    if (serialized) {
+      canvasRef.current?.loadSnapshot(serialized)
+    }
+    setIsLandscapeMode(false)
+  }
+
+  // Render mobile landscape view if active
+  if (isMobile && isLandscapeMode) {
+    return (
+      <MobileCanvasView
+        ref={mobileCanvasRef}
+        members={members}
+        selfMemberId={currentMemberId}
+        onStrokeComplete={handleMobileStrokeComplete}
+        onUndo={handleMobileUndo}
+        onExitLandscape={exitLandscapeMode}
+      />
+    )
+  }
 
   return (
     <div className="app-container py-6 space-y-6">
@@ -125,9 +230,15 @@ export default function RoomPage() {
             )}
 
             <div className="min-w-0 flex-1 p-4 sm:p-6 bg-gradient-to-br from-transparent to-green-500/5">
+              {/* Show landscape prompt for mobile users */}
+              {isMobile && (
+                <LandscapePrompt onEnterLandscape={enterLandscapeMode} />
+              )}
+              
+              {/* Main canvas - hidden on mobile, shown on desktop */}
               <Canvas
                 ref={canvasRef}
-                className="h-[58vh] min-h-[20rem] sm:h-[70vh]"
+                className={`h-[58vh] min-h-[20rem] sm:h-[70vh] ${isMobile ? 'hidden' : ''}`}
                 onStrokeComplete={(stroke: Stroke) => {
                   if (!code) return
                   emitStroke(code, stroke)
