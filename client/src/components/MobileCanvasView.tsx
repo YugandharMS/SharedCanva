@@ -69,7 +69,6 @@ const MobileCanvasView = forwardRef<MobileCanvasHandle, MobileCanvasViewProps>(
     const dprRef = useRef<number>(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1)
 
     // Drawing state
-    const [isDrawing, setIsDrawing] = useState(false)
     const strokesRef = useRef<Stroke[]>([])
     const undoStackRef = useRef<Stroke[]>([])
     const redoStackRef = useRef<Stroke[]>([])
@@ -82,7 +81,6 @@ const MobileCanvasView = forwardRef<MobileCanvasHandle, MobileCanvasViewProps>(
     const [color, setColor] = useState('#ffffff')
     const [showMembers, setShowMembers] = useState(false)
 
-    const backgroundColor = 'transparent'
     const maxStrokePoints = 5000
     const maxUndoSteps = 50
 
@@ -91,9 +89,9 @@ const MobileCanvasView = forwardRef<MobileCanvasHandle, MobileCanvasViewProps>(
       const lockOrientation = async () => {
         try {
           if (screen.orientation && 'lock' in screen.orientation) {
-            await (screen.orientation as any).lock('landscape')
+            await (screen.orientation as ScreenOrientation & { lock: (orientation: string) => Promise<void> }).lock('landscape')
           }
-        } catch (e) {
+        } catch {
           console.log('Orientation lock not supported')
         }
       }
@@ -102,9 +100,9 @@ const MobileCanvasView = forwardRef<MobileCanvasHandle, MobileCanvasViewProps>(
       return () => {
         try {
           if (screen.orientation && 'unlock' in screen.orientation) {
-            (screen.orientation as any).unlock()
+            (screen.orientation as ScreenOrientation & { unlock: () => void }).unlock()
           }
-        } catch (e) {}
+        } catch { /* ignore */ }
       }
     }, [])
 
@@ -199,7 +197,6 @@ const MobileCanvasView = forwardRef<MobileCanvasHandle, MobileCanvasViewProps>(
         createdAt: Date.now(),
       }
       curStrokeRef.current = st
-      setIsDrawing(true)
       redoStackRef.current = []
     }, [tool, color, brushWidth])
 
@@ -238,7 +235,6 @@ const MobileCanvasView = forwardRef<MobileCanvasHandle, MobileCanvasViewProps>(
     const endStroke = useCallback(() => {
       const cur = curStrokeRef.current
       if (!cur) {
-        setIsDrawing(false)
         return
       }
       strokesRef.current.push(cur)
@@ -247,7 +243,6 @@ const MobileCanvasView = forwardRef<MobileCanvasHandle, MobileCanvasViewProps>(
         undoStackRef.current.shift()
       }
       curStrokeRef.current = null
-      setIsDrawing(false)
       if (onStrokeComplete) {
         onStrokeComplete(cur)
       }
@@ -391,7 +386,6 @@ const MobileCanvasView = forwardRef<MobileCanvasHandle, MobileCanvasViewProps>(
       const onPointerCancel = (ev: PointerEvent) => {
         try { (ev.target as Element).releasePointerCapture?.(ev.pointerId) } catch {}
         curStrokeRef.current = null
-        setIsDrawing(false)
       }
 
       canvas.addEventListener('pointerdown', onPointerDown)
